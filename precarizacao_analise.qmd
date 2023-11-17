@@ -1,0 +1,288 @@
+---
+title: "Precarização"
+format: html
+editor: visual
+---
+
+# Precarização
+
+## Preparando ambiente
+
+```{r}
+library(RODBC)
+library(tidyverse)
+library(geobr)
+library(mapview)
+library(viridis)
+library(leaflet)
+library(sf)
+
+```
+
+## Acessando dados
+
+```{r}
+#| warning: false
+#| eval: false
+
+dremio_host <- Sys.getenv("endereco")
+dremio_port <- Sys.getenv("port")
+dremio_uid <- Sys.getenv("uid")
+dremio_pwd <- Sys.getenv("datalake")
+
+channel <- odbcDriverConnect(sprintf("DRIVER=Dremio Connector;
+                                     HOST=%s;PORT=%s;UID=%s;PWD=%s;
+                                     AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct", dremio_host, dremio_port, dremio_uid, dremio_pwd))
+
+consulta <- 'SELECT * FROM "Analytics Layer".Infraestrutura.Profissionais."Percentual de vinculos precarizados - enfermagem por município"'
+
+precarizacao <- sqlQuery(channel, consulta, 
+                      as.is = TRUE)
+```
+
+## Tratando dados para última competência
+
+```{r}
+
+precarizado_23 <- 
+  precarizacao |> 
+  filter(COMPETEN == "202306" & 
+         CATEGORIAS_VINCULOS == "Precarizado") |> 
+  mutate(percentual = as.double(percentual))
+  
+
+```
+
+## Plotando dados
+
+### Enfermagem
+
+```{r}
+
+br <- geobr::read_municipality(code_muni = "all", year = 2021)
+
+br_precarizado <- 
+  br |> 
+  mutate(code_muni = as.character(code_muni)) |> 
+  mutate(code_muni = substr(code_muni, 1, 6)) |> 
+  left_join(precarizado_23, by = c("code_muni"=
+                                   "CODUFMUN"))
+
+br_precarizado_enf <- 
+  br_precarizado |> 
+    filter(Categoria_profissional == "Enfermagem")
+
+br_precarizado_med <- 
+  br_precarizado |> 
+    filter(Categoria_profissional == "Medicina")
+
+br_precarizado_te <- 
+  br_precarizado |> 
+    filter(Categoria_profissional == "Técnico/auxiliar de enfermagem")
+
+```
+
+```{r}
+
+br_precarizado_enf <- st_transform(br_precarizado_enf, crs = st_crs("+proj=longlat +datum=WGS84"))
+
+pal <- colorBin(palette = "RdYlGn", domain = br_precarizado_enf$percentual, bins = 5, reverse = TRUE)
+
+m <- leaflet() %>%
+  addProviderTiles("OpenStreetMap.Mapnik") %>%  # Adicione o provedor de tiles que você preferir
+  addPolygons(data = br_precarizado_enf, 
+              fillColor = ~pal(percentual),
+              fillOpacity = 0.7, 
+              color = "gray", 
+              weight = 1,
+              popup =
+                paste("<strong>Município:</strong>",
+                      br_precarizado_enf$municipio, 
+                      "<br>",
+                      "<strong>Percentual:</strong>",
+                      br_precarizado_enf$percentual, "%"))
+
+m
+
+```
+
+### Técnicos de enfermagem 
+
+```{r}
+
+br_precarizado_te <- st_transform(br_precarizado_te, crs = st_crs("+proj=longlat +datum=WGS84"))
+
+pal <- colorBin(palette = "RdYlGn", domain = br_precarizado_te$percentual, bins = 5, reverse = TRUE)
+
+o <- leaflet() %>%
+  addProviderTiles("OpenStreetMap.Mapnik") %>%  # Adicione o provedor de tiles que você preferir
+  addPolygons(data = br_precarizado_te, 
+              fillColor = ~pal(percentual),
+              fillOpacity = 0.7, 
+              color = "gray", 
+              weight = 1,
+              popup =
+                paste("<strong>Município:</strong>",
+                      br_precarizado_te$municipio, 
+                      "<br>",
+                      "<strong>Percentual:</strong>",
+                      br_precarizado_te$percentual, "%"))
+
+o
+
+
+```
+
+### Medicina 
+
+```{r}
+br_precarizado_med <- st_transform(br_precarizado_med, crs = st_crs("+proj=longlat +datum=WGS84"))
+
+pal <- colorBin(palette = "RdYlGn", domain = br_precarizado_med$percentual, bins = 5, reverse = TRUE)
+
+n <- leaflet() %>%
+  addProviderTiles("OpenStreetMap.Mapnik") %>%  # Adicione o provedor de tiles que você preferir
+  addPolygons(data = br_precarizado_med, 
+              fillColor = ~pal(percentual),
+              fillOpacity = 0.7, 
+              color = "gray", 
+              weight = 1,
+              popup =
+                paste("<strong>Município:</strong>",
+                      br_precarizado_med$municipio, 
+                      "<br>",
+                      "<strong>Percentual:</strong>",
+                      br_precarizado_med$percentual, "%"))
+
+n
+```
+
+# Evolução ao longo do tempo
+
+asdf
+
+## Levantamento de dados
+
+```{r}
+
+#| warning: false
+#| eval: false
+
+dremio_host <- Sys.getenv("endereco")
+dremio_port <- Sys.getenv("port")
+dremio_uid <- Sys.getenv("uid")
+dremio_pwd <- Sys.getenv("datalake")
+
+channel <- odbcDriverConnect(sprintf("DRIVER=Dremio Connector;
+                                     HOST=%s;PORT=%s;UID=%s;PWD=%s;
+                                     AUTHENTICATIONTYPE=Basic Authentication;CONNECTIONTYPE=Direct", dremio_host, dremio_port, dremio_uid, dremio_pwd))
+
+consulta2 <- 'SELECT * FROM "Analytics Layer".Infraestrutura.Profissionais."Proporção de vínculos precários ao longo do tempo por região"'
+
+evolucao <- sqlQuery(channel, consulta2, 
+                      as.is = TRUE)
+
+evolucao$percentual <- as.double(evolucao$percentual)
+
+evolucao_tratado <- 
+  evolucao |> 
+  mutate(ano = substr(COMPETEN, 1, 4),
+         mes = substr(COMPETEN, 5, 6)) |> 
+  mutate(data = as.Date(paste(ano, mes, "01",
+                               sep = "-"), 
+                         format = "%Y-%m-%d"))
+
+
+```
+
+## Enfermagem 
+
+```{r}
+
+evolucao_tratado |> 
+  filter(Categoria_profissional == "Enfermagem") |>
+  rename(Região = regiao_correta) |> 
+  ggplot(aes(x = data, y = percentual, 
+             col = Região)) + 
+  geom_line(linewidth = 1) + ylab("Precarização(%)") +
+  xlab("Ano") + theme_minimal() + 
+  ggtitle("Evolução do percentual dos tipos de vínculos para enfermagem nas regiões",
+          "Fonte: CNES-PF (01/2013 a 08/2023)") +
+  theme(
+    text = element_text(size = 16),
+    axis.text = element_text(size = 14),   
+    axis.title = element_text(size = 20)   
+  ) + 
+  facet_wrap(~CATEGORIAS_VINCULOS)
+
+
+
+```
+
+### Protegido
+
+## Medicina
+
+```{r}
+
+evolucao_tratado |> 
+  filter(Categoria_profissional == "Medicina") |>
+  filter(CATEGORIAS_VINCULOS == "Precarizado") |> 
+  rename(Região = regiao_correta) |> 
+  ggplot(aes(x = data, y = percentual, 
+             col = Região)) + 
+  geom_line(linewidth = 1) + ylab("Precarização(%)") +
+  xlab("Ano") + theme_minimal() + 
+  ggtitle("Evolução do percentual de vínculos precários para medicina nas regiões",
+          "Fonte: CNES-PF (01/2013 a 08/2023)") +
+  theme(
+    text = element_text(size = 16),
+    axis.text = element_text(size = 14),   
+    axis.title = element_text(size = 20)   
+  )
+
+```
+
+## Técnicos
+
+```{r}
+evolucao_tratado |> 
+  filter(Categoria_profissional == "Técnico/auxiliar de enfermagem") |>
+  filter(CATEGORIAS_VINCULOS == "Precarizado") |> 
+  rename(Região = regiao_correta) |> 
+  ggplot(aes(x = data, y = percentual, 
+             col = Região)) + 
+  geom_line(linewidth = 1) + ylab("Precarização(%)") +
+  xlab("Ano") + theme_minimal() + 
+  ggtitle("Evolução do percentual de vínculos precários para técnicos/auxiliares de 
+          enfermagem nas regiões",
+          "Fonte: CNES-PF (01/2013 a 08/2023)") +
+  theme(
+    text = element_text(size = 16),
+    axis.text = element_text(size = 14),   
+    axis.title = element_text(size = 20)   
+  )
+```
+
+Comparando cada um lado a lado
+
+```{r}
+
+evolucao_tratado |> 
+  filter(CATEGORIAS_VINCULOS == "Precarizado") |> 
+  rename(Região = regiao_correta) |> 
+  ggplot(aes(x = data, y = percentual, 
+             col = Região)) + 
+  geom_line(linewidth = 1) + ylab("Precarização(%)") +
+  xlab("Ano") + theme_minimal() + 
+  ggtitle("Evolução do percentual de vínculos precários nas regiões",
+          "Fonte: CNES-PF (01/2013 a 08/2023)") +
+  theme(
+    text = element_text(size = 16),
+    axis.text = element_text(size = 14),   
+    axis.title = element_text(size = 20)   
+  ) + 
+  facet_wrap(~Categoria_profissional)
+
+
+```
