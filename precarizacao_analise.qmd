@@ -106,7 +106,7 @@ m
 
 ```
 
-### Técnicos de enfermagem 
+### Técnicos de enfermagem
 
 ```{r}
 
@@ -133,7 +133,7 @@ o
 
 ```
 
-### Medicina 
+### Medicina
 
 ```{r}
 br_precarizado_med <- st_transform(br_precarizado_med, crs = st_crs("+proj=longlat +datum=WGS84"))
@@ -195,7 +195,7 @@ evolucao_tratado <-
 
 ```
 
-## Enfermagem 
+## Enfermagem
 
 ```{r}
 
