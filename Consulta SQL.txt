@@ -1,0 +1,66 @@
+WITH
+    CNES_VINC 
+    AS (
+        SELECT 
+            SUBSTR(PF.COMPETEN, 1, 4) AS ANO, 
+            PF.COMPETEN, PF.VINCULAC, a.cod_regsaud, 
+            a.regiao_saude, PF.CODUFMUN, a.municipio, a.latitude, 
+            a.longitude, PF.uf, PF.CBO, v.DESCRIÇÃO,
+            CASE
+                WHEN SUBSTR(VINCULAC, 1, 4) = '0101' OR
+                     SUBSTR(VINCULAC, 1, 4) = '0102' OR 
+                     SUBSTR(VINCULAC, 1, 4) = '0105' OR
+                     SUBSTR(VINCULAC, 1, 3) = '100'  THEN 'Protegido'
+                WHEN 
+                     SUBSTR(VINCULAC, 1, 4) = '0103' OR
+                     SUBSTR(VINCULAC, 1, 4) = '0104' OR 
+                     SUBSTR(VINCULAC, 1, 2) = '02' OR
+                     SUBSTR(VINCULAC, 1, 2) = '03' OR
+                     SUBSTR(VINCULAC, 1, 4) = '0401' OR
+                     SUBSTR(VINCULAC, 1, 4) = '0402' OR
+                     SUBSTR(VINCULAC, 1, 2) = '07' OR
+                     SUBSTR(VINCULAC, 1, 2) = '08' OR 
+                     SUBSTR(VINCULAC, 1, 2) = '09' THEN 'Precarizado'
+                WHEN 
+                     SUBSTR(VINCULAC, 1, 2) = '05' OR 
+                     SUBSTR(VINCULAC, 1, 2) = '06' OR 
+                     SUBSTR(VINCULAC, 1, 4) = '0403' THEN 'Outros'
+                ELSE 'Sem informação'
+            END CATEGORIAS_VINCULOS
+        FROM Dados.cnes.PF PF
+        LEFT JOIN Dados.cnes."VINCULAC.parquet" v            
+            ON PF.VINCULAC = v.CHAVE
+        LEFT JOIN "Analytics Layer".Territorial."Municípios - Hierarquia Completa" a 
+            ON SUBSTR(PF.CODUFMUN, 1, 6) = CAST(a.cod_municipio AS CHARACTER)
+        WHERE SUBSTR(PF.CBO, 1, 4) = '2235' -- Família de CBO dos enfermeiros
+        
+    )
+
+
+SELECT 
+    ANO, 
+    COMPETEN, 
+    CODUFMUN, 
+    uf, 
+    municipio, 
+    latitude, 
+    longitude,
+    CATEGORIAS_VINCULOS, 
+    COUNT(*) as quantidade,
+    ROUND((COUNT(*) * 100.0) / SUM(COUNT(*)) OVER (PARTITION BY ANO, COMPETEN, CODUFMUN, uf, municipio, 
+                                                                latitude, longitude),2) as percentual
+FROM 
+    CNES_VINC
+WHERE 
+    ANO > 2009 
+GROUP BY 
+    ANO, 
+    COMPETEN, 
+    CODUFMUN, 
+    uf, 
+    municipio, 
+    latitude, 
+    longitude,
+    CATEGORIAS_VINCULOS
+ORDER BY COMPETEN,
+         municipio
