@@ -1,0 +1,98 @@
+WITH
+    CNES_VINC 
+    AS (
+        SELECT 
+            SUBSTR(PF.COMPETEN, 1, 4) AS ANO, 
+            PF.COMPETEN, PF.VINCULAC, a.cod_regsaud, 
+            a.regiao_saude, PF.CODUFMUN, a.municipio, a.latitude, 
+            a.longitude, PF.uf, PF.CBO, v.DESCRIÇÃO, TP_UNID,
+            CASE
+                WHEN SUBSTR(VINCULAC, 1, 4) = '0101' OR
+                     SUBSTR(VINCULAC, 1, 4) = '0102' OR 
+                     SUBSTR(VINCULAC, 1, 4) = '0105' OR
+                     SUBSTR(VINCULAC, 1, 3) = '100'  THEN 'Protegido'
+                WHEN 
+                     SUBSTR(VINCULAC, 1, 4) = '0103' OR
+                     SUBSTR(VINCULAC, 1, 4) = '0104' OR 
+                     SUBSTR(VINCULAC, 1, 2) = '02' OR
+                     SUBSTR(VINCULAC, 1, 2) = '03' OR
+                     SUBSTR(VINCULAC, 1, 4) = '0401' OR
+                     SUBSTR(VINCULAC, 1, 4) = '0402' OR
+                     SUBSTR(VINCULAC, 1, 2) = '07' OR
+                     SUBSTR(VINCULAC, 1, 2) = '08' OR 
+                     SUBSTR(VINCULAC, 1, 2) = '09' THEN 'Precarizado'
+                WHEN 
+                     SUBSTR(VINCULAC, 1, 2) = '05' OR 
+                     SUBSTR(VINCULAC, 1, 2) = '06' OR 
+                     SUBSTR(VINCULAC, 1, 4) = '0403' THEN 'Outros'
+                ELSE 'Sem informação'
+            END CATEGORIAS_VINCULOS,
+            CASE
+                WHEN 
+                    TP_UNID = '01' OR 
+                    TP_UNID = '02' OR 
+                    TP_UNID = '32' OR
+                    TP_UNID = '40' OR
+                    TP_UNID = '71' OR
+                    TP_UNID = '72' OR
+                    TP_UNID = '74' THEN 'Primária'
+                WHEN 
+                    TP_UNID = '04' OR
+                    TP_UNID = '15' OR
+                    TP_UNID = '20' OR
+                    TP_UNID = '21' OR
+                    TP_UNID = '22' OR
+                    TP_UNID = '36' OR
+                    TP_UNID = '39' OR
+                    TP_UNID = '42' OR
+                    TP_UNID = '61' OR
+                    TP_UNID = '62' OR
+                    TP_UNID = '69' OR
+                    TP_UNID = '70' OR
+                    TP_UNID = '73' OR
+                    TP_UNID = '79' OR
+                    TP_UNID = '83' THEN 'Secundária'
+                WHEN 
+                    TP_UNID = '05' OR
+                    TP_UNID = '07' THEN 'Terciária'
+                ELSE 'Outros/Múltiplos' 
+        END NIVEL_ATENCAO
+        FROM Dados.cnes.PF PF
+        LEFT JOIN Dados.cnes."VINCULAC.parquet" v            
+            ON PF.VINCULAC = v.CHAVE
+        LEFT JOIN "Analytics Layer".Territorial."Municípios - Hierarquia Completa" a 
+            ON SUBSTR(PF.CODUFMUN, 1, 6) = CAST(a.cod_municipio AS CHARACTER)
+        WHERE SUBSTR(PF.CBO, 1, 4) = '2235' -- Família de CBO dos enfermeiros
+        
+    )
+
+
+SELECT 
+    ANO, 
+    COMPETEN, 
+    CODUFMUN, 
+    uf, 
+    municipio, 
+    latitude, 
+    longitude,
+    NIVEL_ATENCAO,
+    CATEGORIAS_VINCULOS, 
+    COUNT(*) as quantidade,
+    ROUND((COUNT(*) * 100.0) / SUM(COUNT(*)) OVER (PARTITION BY ANO, COMPETEN, CODUFMUN, uf, municipio, 
+                                                                latitude, longitude, NIVEL_ATENCAO),2) as percentual
+FROM 
+    CNES_VINC
+WHERE 
+    ANO > 2009 
+GROUP BY 
+    ANO, 
+    COMPETEN, 
+    CODUFMUN, 
+    uf, 
+    municipio, 
+    latitude, 
+    longitude,
+    NIVEL_ATENCAO,
+    CATEGORIAS_VINCULOS
+ORDER BY COMPETEN,
+         municipio
