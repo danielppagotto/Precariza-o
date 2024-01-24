@@ -19,13 +19,14 @@ prec_enf_tratado <-
 prec_enf_tratado |> 
   ggplot(aes(x = ano, y = 100*percentual, col = Nível)) + 
   geom_line(linewidth = 1) + 
-  theme_minimal() + facet_wrap(~Regiao, ncol = 2) + 
+  theme_minimal() + facet_wrap(~Regiao, ncol = 3) + 
   xlab("Ano") + 
-  ylab("Percentual de vínculos precarizados (%)") + 
+  ylab("Vínculos precarizados (%)") + 
   theme(
     text = element_text(size = 12),     
-    axis.title = element_text(size = 14),
+    axis.title = element_text(size = 12),
     axis.text = element_text(size = 12),   
     legend.title = element_text(size = 14),  
-    legend.text = element_text(size = 12)   
+    legend.text = element_text(size = 12),
+    legend.position = "bottom"
   )
