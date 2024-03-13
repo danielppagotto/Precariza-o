@@ -1,0 +1,27 @@
+-- consulta 
+
+SELECT A.CATEGORIAS_VINCULOS, SUM(A.quantidade)
+FROM "Analytics Layer".Infraestrutura.Profissionais."Percentual de vinculos precarizados - enfermagem por município" A
+GROUP BY A.CATEGORIAS_VINCULOS
+
+
+--- consulta 2023
+
+SELECT A.CATEGORIAS_VINCULOS, SUM(A.quantidade)
+FROM "Analytics Layer".Infraestrutura.Profissionais."Percentual de vinculos precarizados - enfermagem por município" A
+WHERE ANO = '2023'
+GROUP BY A.CATEGORIAS_VINCULOS
+
+--- contagem de outros vínculos
+
+SELECT SUM(a.quantidade)
+FROM "Analytics Layer".Infraestrutura.Profissionais."Percentual de vinculos precarizados - enfermagem por município" a 
+WHERE NIVEL_ATENCAO = 'OUTROS/MÚLTIPLOS'
+
+
+--- contagem por nível de atenção
+
+SELECT a.NIVEL_ATENCAO, sum(a.quantidade) as total 
+FROM "Analytics Layer".Infraestrutura.Profissionais."Percentual de vinculos precarizados - enfermagem por município" a 
+WHERE NIVEL_ATENCAO = 'Primária' OR a.NIVEL_ATENCAO = 'Terciária' OR a.NIVEL_ATENCAO = 'Secundária'
+GROUP BY a.NIVEL_ATENCAO
